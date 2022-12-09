@@ -7,26 +7,10 @@
 #include <chrono>
 
 #include <sys/ipc.h>
-#include <sys/sem.h>
 #include <sys/msg.h>
+#include <sys/sem.h>
 #include <sys/types.h>
-
-#ifdef _WIN32
-#include <Windows.h>
-#else
 #include <unistd.h>
-#endif
-
-struct my_msgbuf
-{
-    long mtype;
-    char mtext[1024];
-
-    my_msgbuf() : mtype(0)
-    {
-        memset(mtext, '\0', sizeof(mtext) + 1);
-    }
-};
 
 using namespace std;
 
@@ -43,7 +27,7 @@ int main(int argc, char *argv[])
     int sleep = stoi(argv[4]);
 
     /* Msg *buf = new Msg(commodity, -1); */
-    struct my_msgbuf buf;
+    struct mymsg_buffer buf;
     int msqid;
     int len;
     key_t key;
@@ -55,9 +39,9 @@ int main(int argc, char *argv[])
         cout << "frtok - error\n";
         return -1;
     }
-    // shmget,shmat
-    //
+
     // connect to queue
+    // shmat (with size)
     if ((msqid = msgget(key, PERMS | IPC_CREAT)) == -1)
     {
         cout << "msget - error\n";
@@ -71,18 +55,21 @@ int main(int argc, char *argv[])
     /* dbg(mean); */
     /* dbg(std_dev); */
     /* dbg(sleep); */
+
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(mean, std_dev);
     while (true)
     {
         double number = distribution(generator);
-        sprintf(buf.mtext, "%s:%.3f", commodity, number);
-        /* cin.getline(buf.mtext, sizeof(buf.mtext)); */
+        sprintf(buf.mtext, "%s:%2lf", commodity, number);
+
         len = strlen(buf.mtext);
         if (buf.mtext[len - 1] == '\n')
         {
             buf.mtext[len - 1] = '\0';
         }
+        // have pointer send to it
+        // 
         if (msgsnd(msqid, &buf, len + 1, 0) == -1)
         {
             cout << "msgnd - error\n";
@@ -90,32 +77,11 @@ int main(int argc, char *argv[])
         }
         this_thread::sleep_for(chrono::milliseconds(sleep));
     }
-    /* while (true) */
-    /* { */
-    /*     double number = distribution(generator); */
-    /*     buf->price = number; */
-    /*     string s = buf->get_msg(); */
-    /*     /1* dbg(number); *1/ */
-    /*     this_thread::sleep_for(chrono::milliseconds(sleep)); */
-    /*     if (msgsnd(msqid, &buf, sizeof(s), 0) == -1) */
-    /*     { */
-    /*         cout << "msgnd - error\n"; */
-    /*         return -1; */
-    /*     } */
-    /* } */
-    strcpy(buf.mtext, "end");
-    len = strlen(buf.mtext);
-    if (msgsnd(msqid, &buf, len + 1, 0) == -1)
-    {
-        cout << "msgnd - error\n";
-        return -1;
-    }
 
     if (msgctl(msqid, IPC_RMID, nullptr) == -1)
     {
         cout << "line 77\n";
         return -1;
     }
-    cout << "Done";
     return 0;
 }

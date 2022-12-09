@@ -1,21 +1,14 @@
 #include "msg.h"
-#include <bits/stdc++.h>
 
-/* #define SHARED_MEM_NAME "shared_mem" */
-
-Msg::Msg(char commodity[], double price)
+Commidity::Commidity()
 {
-    /* this->commodity = commodity; */
-    strcpy(this->commodity, commodity);
+}
+Commidity::Commidity(std::string name, double price, double avg_price)
+{
+    this->name = name;
     this->price = price;
-}
-Msg::Msg()
-{
-}
-
-std::string Msg::get_msg()
-{
-    char buffer[100];
-    sprintf(buffer, "%s:%.3f", this->commodity, this->price);
-    return buffer;
+    this->last_price = 0;
+    this->price_state = UNCHANGED;
+    this->avg_price = avg_price;
+    this->last_avg_price = UNCHANGED;
 }
