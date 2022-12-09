@@ -6,9 +6,11 @@
 #include <bits/stdc++.h>
 #include <chrono>
 
+#include "Queue.h"
+
 #include <sys/ipc.h>
-#include <sys/msg.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -26,62 +28,66 @@ int main(int argc, char *argv[])
     double std_dev = stod(argv[3]);
     int sleep = stoi(argv[4]);
 
-    /* Msg *buf = new Msg(commodity, -1); */
-    struct mymsg_buffer buf;
-    int msqid;
+    int shmid;
     int len;
     key_t key;
 
     // get unique key
-
     if ((key = ftok(SHARED_MEM_NAME, 'B')) == -1)
     {
         cout << "frtok - error\n";
         return -1;
     }
 
-    // connect to queue
-    // shmat (with size)
-    if ((msqid = msgget(key, PERMS | IPC_CREAT)) == -1)
+    // reading shared memoruy
+    if ((shmid = shmget(key, sizeof(Queue), PERMS)) == -1)
     {
         cout << "msget - error\n";
         return -1;
     }
-    printf("Ready to Send\n");
-    /* buf->m_type = 1; // does not matter atm */
-    buf.mtype = 1;
 
-    /* dbg(commodity); */
-    /* dbg(mean); */
-    /* dbg(std_dev); */
-    /* dbg(sleep); */
+    printf("Ready to Send\n");
+
+    // attach to shared memory
+    void *tmp = shmat(shmid, (void *)0, 0);
+    /* auto tmp = nullptr; */
+    if (tmp == nullptr)
+    {
+        printf("shmat -error");
+        return -1;
+    }
+
+    Queue *q = new (tmp) Queue;
+
+    Commidity *tmp_comm = new Commidity("hi", 0, 0);
+    Commidity *tmp_comm1 = new Commidity("hi111", 0, 0);
+
+    q->push(tmp_comm);
+    q->push(tmp_comm1);
+    q->push(tmp_comm);
+    q->push(tmp_comm);
+    q->push(tmp_comm);
+    cout << q->getSize() << endl;
+    cout << q->front()->name << endl;
+    q->pop();
+    cout << q->front()->name << endl;
 
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(mean, std_dev);
     while (true)
     {
         double number = distribution(generator);
-        sprintf(buf.mtext, "%s:%2lf", commodity, number);
 
-        len = strlen(buf.mtext);
-        if (buf.mtext[len - 1] == '\n')
-        {
-            buf.mtext[len - 1] = '\0';
-        }
-        // have pointer send to it
-        // 
-        if (msgsnd(msqid, &buf, len + 1, 0) == -1)
-        {
-            cout << "msgnd - error\n";
-            return -1;
-        }
+        cout << "no seg fault here prob";
+        Commidity *to_send = new Commidity(commodity, number, 0);
+        q->push(to_send);
+
+        printf("Sent\n");
+
         this_thread::sleep_for(chrono::milliseconds(sleep));
     }
 
-    if (msgctl(msqid, IPC_RMID, nullptr) == -1)
-    {
-        cout << "line 77\n";
-        return -1;
-    }
+    shmdt(q);
+
     return 0;
 }

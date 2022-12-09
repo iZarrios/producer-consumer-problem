@@ -3,6 +3,7 @@
 #define dbg(a) cout << #a << "=" << a << endl
 #define UP_ARROW "↑"
 #define DOWN_ARROW "↓"
+#define SHARED_MEM_SIZE 1024
 
 // the following are UBUNTU/LINUX, and MacOS ONLY terminal color codes.
 #define RESET "\033[0m"

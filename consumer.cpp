@@ -1,11 +1,10 @@
-
-
 #include "msg.h"
+
 #include <bits/stdc++.h>
-#include <chrono>
-#include <sys/msg.h>
+#include <sys/shm.h>
 #include <sys/types.h>
-#include <thread>
+
+#include "Queue.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -14,6 +13,123 @@
 #endif
 
 using namespace std;
+
+void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order);
+
+int main(int argc, char *argv[])
+{
+    cout << "XDDDDDD";
+    // Initial Commodities
+    vector<string> names_in_order = {"GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
+                                     "NICKEL", "LEAD",   "ZINC",    "MATHANOL",   "COTTON"};
+    // Sort by Name
+    sort(names_in_order.begin(), names_in_order.end());
+
+    unordered_map<string, Commidity *> commodities;
+
+    // does not have to be names in order
+    for (string s : names_in_order)
+    {
+        Commidity *comm = new Commidity(s, 0, 0);
+        commodities[s] = comm;
+    }
+
+    int shmid; // shared memory id
+    key_t key; // shared memory key
+
+    // generate unique key for the shared memeory
+    if ((key = ftok(SHARED_MEM_NAME, 'B')) == -1)
+    {
+        cout << "frtok - error\n";
+        return -1;
+    }
+
+    // create to shared memory
+    if ((shmid = shmget(key, sizeof(Queue), PERMS | IPC_CREAT)) == -1)
+    {
+        cout << "msget - error\n";
+        return -1;
+    }
+
+    // attach to shared memory
+    void *tmp = shmat(shmid, nullptr, 0);
+
+    Queue *q = new (tmp) Queue;
+
+    // TODO: Error Handling
+    while (true)
+    {
+        if (q->getSize() == 0)
+            continue;
+        Commidity *recieved = q->pop();
+        cout << recieved->name << endl;
+
+        /* int idx; */
+        /* for (idx = 0; idx < strlen(buf.mtext); idx++) */
+        /* { */
+        /*     if (buf.mtext[idx] == ':') */
+        /*     { */
+        /*         break; */
+        /*     } */
+        /* } */
+
+        /* string recieved_comm_name, recieved_comm_price_str; */
+        /* double recieved_comm_price; */
+
+        /* for (int i = 0; i < idx; i++) */
+        /* { */
+        /*     recieved_comm_name += buf.mtext[i]; */
+        /* } */
+
+        /* // start after ':' char */
+        /* for (int i = idx + 1; i < strlen(buf.mtext); i++) */
+        /* { */
+        /*     recieved_comm_price_str += buf.mtext[i]; */
+        /* } */
+
+        /* recieved_comm_price = stod(recieved_comm_price_str); */
+        /* /1* cout << recieved_comm_price; *1/ */
+        /* Commidity *comm_recieved_to_change = commodities[recieved_comm_name]; */
+
+        /* comm_recieved_to_change->last_price = comm_recieved_to_change->price; */
+        /* comm_recieved_to_change->last_avg_price = comm_recieved_to_change->avg_price; */
+
+        /* double new_avg = (commodities[recieved_comm_name]->avg_price + recieved_comm_price) / 2; */
+        /* comm_recieved_to_change->avg_price = new_avg; */
+        /* comm_recieved_to_change->price = recieved_comm_price; */
+
+        /* if (comm_recieved_to_change->last_avg_price > comm_recieved_to_change->avg_price) */
+        /* { */
+        /*     comm_recieved_to_change->avg_price_state = DECREASED; */
+        /* } */
+        /* else if (comm_recieved_to_change->last_avg_price < comm_recieved_to_change->avg_price) */
+        /* { */
+        /*     comm_recieved_to_change->avg_price_state = INCREASED; */
+        /* } */
+        /* else */
+        /* { */
+        /*     comm_recieved_to_change->avg_price_state = UNCHANGED; */
+        /* } */
+
+        /* if (comm_recieved_to_change->last_price > comm_recieved_to_change->price) */
+        /* { */
+        /*     comm_recieved_to_change->price_state = DECREASED; */
+        /* } */
+        /* else if (comm_recieved_to_change->last_price < comm_recieved_to_change->price) */
+        /* { */
+        /*     comm_recieved_to_change->price_state = INCREASED; */
+        /* } */
+        /* else */
+        /* { */
+        /*     comm_recieved_to_change->price_state = UNCHANGED; */
+        /* } */
+
+        /* print_table(commodities, names_in_order); */
+    }
+    shmdt(q);
+
+    return 0;
+}
 
 void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order)
 {
@@ -65,134 +181,4 @@ void print_table(unordered_map<string, Commidity *> commodities, vector<string> 
     }
     printf("+-------------------------------------+\n");
     printf("\e[1;1H\e[2J");
-}
-
-int main(int argc, char *argv[])
-{
-    // Initial Commodities
-    vector<string> names_in_order = {"GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
-                                     "NICKEL", "LEAD",   "ZINC",    "MATHANOL",   "COTTON"};
-    // Sort by Name
-    sort(names_in_order.begin(), names_in_order.end());
-
-    unordered_map<string, Commidity *> commodities;
-
-    // does not have to be names in order
-    for (string s : names_in_order)
-    {
-        Commidity *comm = new Commidity(s, 0, 0);
-        commodities[s] = comm;
-    }
-
-    struct mymsg_buffer buf;
-
-    int msqid;
-    key_t key;
-
-    // get unique key
-    if ((key = ftok(SHARED_MEM_NAME, 'B')) == -1)
-    {
-        cout << "ftok - error\npossibilywrong shared memory name\n";
-        return -1;
-    }
-    // connect to queue
-    if ((msqid = msgget(key, PERMS)) == -1)
-    {
-        cout << "msgget - error\nCannot connect to the queue\n";
-        return -1;
-    }
-
-    // struct requirement
-    buf.mtype = 1;
-
-    // Consumer Logic Starts Here
-
-    // TODO: Error Handling
-    while (true)
-    {
-        if (msgrcv(msqid, &buf, sizeof(buf.mtext), 0, 0) == -1)
-        {
-            cout << "msgrcv - error" << endl;
-            return -1;
-        }
-
-        int idx;
-        for (idx = 0; idx < strlen(buf.mtext); idx++)
-        {
-            if (buf.mtext[idx] == ':')
-            {
-                break;
-            }
-        }
-
-        string recieved_comm_name, recieved_comm_price_str;
-        double recieved_comm_price;
-
-        for (int i = 0; i < idx; i++)
-        {
-            recieved_comm_name += buf.mtext[i];
-        }
-
-        // start after ':' char
-        for (int i = idx + 1; i < strlen(buf.mtext); i++)
-        {
-            recieved_comm_price_str += buf.mtext[i];
-        }
-
-        recieved_comm_price = stod(recieved_comm_price_str);
-        /* cout << recieved_comm_price; */
-        Commidity *comm_recieved_to_change = commodities[recieved_comm_name];
-
-        comm_recieved_to_change->last_price = comm_recieved_to_change->price;
-        comm_recieved_to_change->last_avg_price = comm_recieved_to_change->avg_price;
-
-        double new_avg = (commodities[recieved_comm_name]->avg_price + recieved_comm_price) / 2;
-        comm_recieved_to_change->avg_price = new_avg;
-        comm_recieved_to_change->price = recieved_comm_price;
-
-        if (comm_recieved_to_change->last_avg_price > comm_recieved_to_change->avg_price)
-        {
-            comm_recieved_to_change->avg_price_state = DECREASED;
-        }
-        else if (comm_recieved_to_change->last_avg_price < comm_recieved_to_change->avg_price)
-        {
-            comm_recieved_to_change->avg_price_state = INCREASED;
-        }
-        else
-        {
-            comm_recieved_to_change->avg_price_state = UNCHANGED;
-        }
-
-        if (comm_recieved_to_change->last_price > comm_recieved_to_change->price)
-        {
-            comm_recieved_to_change->price_state = DECREASED;
-        }
-        else if (comm_recieved_to_change->last_price < comm_recieved_to_change->price)
-        {
-            comm_recieved_to_change->price_state = INCREASED;
-        }
-        else
-        {
-            comm_recieved_to_change->price_state = UNCHANGED;
-        }
-
-        /* string str = "ALUMINIUM"; */
-        /* string str1 = recieved_comm_name; */
-        /* cout << str.length() << " " << str1.length(); */
-        /* cout << str << " " << str1; */
-        /* cout << endl; */
-        /* cout<<commodities[recieved_comm_name]->name; */
-        /* cout<<commodities["ALUMINIUM"]->name<<endl; */
-
-        print_table(commodities, names_in_order);
-    }
-
-    // rm link to the shared memory
-    if (msgctl(msqid, IPC_RMID, nullptr) == -1)
-    {
-        cout << "line 77\n";
-        return -1;
-    }
-
-    return 0;
 }
