@@ -1,6 +1,9 @@
+#define AVG_NO 4
+
 #include "msg.h"
 
 #include <bits/stdc++.h>
+#include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/types.h>
 
@@ -18,7 +21,6 @@ void print_table(unordered_map<string, Commidity *> commodities, vector<string> 
 
 int main(int argc, char *argv[])
 {
-    cout << "XDDDDDD";
     // Initial Commodities
     vector<string> names_in_order = {"GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
                                      "NICKEL", "LEAD",   "ZINC",    "MATHANOL",   "COTTON"};
@@ -30,7 +32,7 @@ int main(int argc, char *argv[])
     // does not have to be names in order
     for (string s : names_in_order)
     {
-        Commidity *comm = new Commidity(s, 0, 0);
+        Commidity *comm = new Commidity(s, 0);
         commodities[s] = comm;
     }
 
@@ -38,96 +40,100 @@ int main(int argc, char *argv[])
     key_t key; // shared memory key
 
     // generate unique key for the shared memeory
-    if ((key = ftok(SHARED_MEM_NAME, 'B')) == -1)
+    if ((key = ftok(SHARED_MEM_NAME, 'A')) == -1)
     {
         cout << "frtok - error\n";
         return -1;
     }
 
     // create to shared memory
-    if ((shmid = shmget(key, sizeof(Queue), PERMS | IPC_CREAT)) == -1)
+    /* if ((shmid = shmget(key, sizeof(Queue), PERMS | IPC_CREAT)) == -1) */
+    if ((shmid = shmget(key, sizeof(Queue *) * 1024 + 20, PERMS | IPC_CREAT)) == -1)
     {
-        cout << "msget - error\n";
+        cout << "shmget - error\n";
         return -1;
     }
 
     // attach to shared memory
-    void *tmp = shmat(shmid, nullptr, 0);
+    void *tmp = shmat(shmid, (void *)0, 0);
 
-    Queue *q = new (tmp) Queue;
+    Queue *q = (Queue *)tmp;
 
-    // TODO: Error Handling
+    q->clear();
+
+    char *recieved_comm_name;
+    double recieved_comm_price;
+    long long count = 0;
+
     while (true)
     {
         if (q->getSize() == 0)
+        {
             continue;
-        Commidity *recieved = q->pop();
-        cout << recieved->name << endl;
+        }
 
-        /* int idx; */
-        /* for (idx = 0; idx < strlen(buf.mtext); idx++) */
-        /* { */
-        /*     if (buf.mtext[idx] == ':') */
-        /*     { */
-        /*         break; */
-        /*     } */
-        /* } */
+        struct mymsg_buffer recieved = q->pop();
 
-        /* string recieved_comm_name, recieved_comm_price_str; */
-        /* double recieved_comm_price; */
+        recieved_comm_name = recieved.name;
+        recieved_comm_price = recieved.price;
 
-        /* for (int i = 0; i < idx; i++) */
-        /* { */
-        /*     recieved_comm_name += buf.mtext[i]; */
-        /* } */
+        Commidity *comm_recieved_to_change = commodities[recieved_comm_name];
 
-        /* // start after ':' char */
-        /* for (int i = idx + 1; i < strlen(buf.mtext); i++) */
-        /* { */
-        /*     recieved_comm_price_str += buf.mtext[i]; */
-        /* } */
+        comm_recieved_to_change->last_avg_price = comm_recieved_to_change->avg_price;
 
-        /* recieved_comm_price = stod(recieved_comm_price_str); */
-        /* /1* cout << recieved_comm_price; *1/ */
-        /* Commidity *comm_recieved_to_change = commodities[recieved_comm_name]; */
+        if (comm_recieved_to_change->last_prices.size() >= AVG_NO) // 4
+        {
+            comm_recieved_to_change->last_prices.pop();
+        }
+        comm_recieved_to_change->last_prices.push(recieved.price);
 
-        /* comm_recieved_to_change->last_price = comm_recieved_to_change->price; */
-        /* comm_recieved_to_change->last_avg_price = comm_recieved_to_change->avg_price; */
+        comm_recieved_to_change->last_price = comm_recieved_to_change->price;
 
-        /* double new_avg = (commodities[recieved_comm_name]->avg_price + recieved_comm_price) / 2; */
-        /* comm_recieved_to_change->avg_price = new_avg; */
-        /* comm_recieved_to_change->price = recieved_comm_price; */
+        comm_recieved_to_change->price = recieved_comm_price;
 
-        /* if (comm_recieved_to_change->last_avg_price > comm_recieved_to_change->avg_price) */
-        /* { */
-        /*     comm_recieved_to_change->avg_price_state = DECREASED; */
-        /* } */
-        /* else if (comm_recieved_to_change->last_avg_price < comm_recieved_to_change->avg_price) */
-        /* { */
-        /*     comm_recieved_to_change->avg_price_state = INCREASED; */
-        /* } */
-        /* else */
-        /* { */
-        /*     comm_recieved_to_change->avg_price_state = UNCHANGED; */
-        /* } */
+        double new_avg = 0;
 
-        /* if (comm_recieved_to_change->last_price > comm_recieved_to_change->price) */
-        /* { */
-        /*     comm_recieved_to_change->price_state = DECREASED; */
-        /* } */
-        /* else if (comm_recieved_to_change->last_price < comm_recieved_to_change->price) */
-        /* { */
-        /*     comm_recieved_to_change->price_state = INCREASED; */
-        /* } */
-        /* else */
-        /* { */
-        /*     comm_recieved_to_change->price_state = UNCHANGED; */
-        /* } */
+        for (int i = 0; i < comm_recieved_to_change->last_prices.size(); i++)
+        {
+            double last_price = comm_recieved_to_change->last_prices.front();
+            new_avg += last_price;
+            comm_recieved_to_change->last_prices.pop();
+            comm_recieved_to_change->last_prices.push(last_price);
+        }
+        new_avg /= AVG_NO;
 
-        /* print_table(commodities, names_in_order); */
+        comm_recieved_to_change->avg_price = new_avg;
+
+        if (comm_recieved_to_change->last_avg_price > comm_recieved_to_change->avg_price)
+        {
+            comm_recieved_to_change->avg_price_state = DECREASED;
+        }
+        else if (comm_recieved_to_change->last_avg_price < comm_recieved_to_change->avg_price)
+        {
+            comm_recieved_to_change->avg_price_state = INCREASED;
+        }
+        else
+        {
+            comm_recieved_to_change->avg_price_state = UNCHANGED;
+        }
+
+        if (comm_recieved_to_change->last_price > comm_recieved_to_change->price)
+        {
+            comm_recieved_to_change->price_state = DECREASED;
+        }
+        else if (comm_recieved_to_change->last_price < comm_recieved_to_change->price)
+        {
+            comm_recieved_to_change->price_state = INCREASED;
+        }
+        else
+        {
+            comm_recieved_to_change->price_state = UNCHANGED;
+        }
+
+        print_table(commodities, names_in_order);
     }
-    shmdt(q);
 
+    shmdt(q);
     return 0;
 }
 

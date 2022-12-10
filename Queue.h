@@ -2,22 +2,20 @@
 
 #include "msg.h"
 
-#define MAX_SIZE 2048
-
-/* typedef char T; */
 
 class Queue
 {
-    Commidity **data;
-    int head;
-    int tail;
-    int size;
+    struct mymsg_buffer data[SHARED_MEM_SIZE];
+    long long head;
+    long long tail;
+    long long size;
 
   public:
     Queue();
-    int getSize();
+    long long getSize();
     bool isEmpty();
-    Commidity *front();
-    void push(Commidity *);
-    Commidity *pop();
+    void clear();
+    struct mymsg_buffer front();
+    void push(struct mymsg_buffer);
+    struct mymsg_buffer pop();
 };

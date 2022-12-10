@@ -1,9 +1,16 @@
 #pragma once
 #define SHARED_MEM_NAME "shared_mem"
+#define SHARED_MEM_SIZE 1024
+
+#define INDEXER_NAME "indexer"
+
+#define SEM_MUTEX "sem-mutex"
+#define SEM_BUFFER_COUNT "SEM-buffer-count"
+#define SEM_SIG "sem-sig"
+
 #define dbg(a) cout << #a << "=" << a << endl
 #define UP_ARROW "↑"
 #define DOWN_ARROW "↓"
-#define SHARED_MEM_SIZE 1024
 
 // the following are UBUNTU/LINUX, and MacOS ONLY terminal color codes.
 #define RESET "\033[0m"
@@ -33,14 +40,33 @@
 #include <string.h>
 #include <string>
 
+#include <queue>
+
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/types.h>
+
+union my_semun {
+    int val;               /* val for SETVAL */
+    struct semid_ds *buf;  /* Buffer for IPC_STAT and IPC_SET */
+    unsigned short *array; /* Buffer for GETALL and SETALL */
+    struct seminfo *__buf; /* Buffer for IPC_INFO and SEM_INFO*/
+};
+
+union semun {
+    int val;
+    struct semid_ds *buf;
+    ushort array[1];
+} sem_attr;
+
 struct mymsg_buffer
 {
-    long mtype;
-    char mtext[1024];
+    char name[11];
+    double price;
 
-    mymsg_buffer() : mtype(0)
+    mymsg_buffer()
     {
-        memset(mtext, '\0', strlen(mtext));
+        memset(name, '\0', strlen(name));
     }
 };
 
@@ -48,13 +74,17 @@ class Commidity
 {
   public:
     std::string name;
+
     double price;
     double avg_price;
+
+    std::queue<double> last_prices;
     double last_price;
     double last_avg_price;
+
     int price_state;
     int avg_price_state;
 
     Commidity();
-    Commidity(std::string, double, double);
+    Commidity(std::string, double);
 };

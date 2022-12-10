@@ -1,4 +1,5 @@
 #include "Queue.h"
+#include "msg.h"
 
 #include <bits/stdc++.h>
 
@@ -6,7 +7,7 @@ using namespace std;
 
 Queue::Queue()
 {
-    data = new Commidity *[MAX_SIZE];
+    /* data = new Commidity [MAX_SIZE]; */
     /* for (int i = 0; i < MAX_SIZE; i++) */
     /* { */
     /*     data[i] = nullptr; */
@@ -17,7 +18,14 @@ Queue::Queue()
     size = 0;
 }
 
-int Queue::getSize()
+void Queue::clear()
+{
+    size = 0;
+    head = -1;
+    tail = 0;
+}
+
+long long  Queue::getSize()
 {
     return size;
 }
@@ -27,17 +35,17 @@ bool Queue::isEmpty()
     return size == 0;
 }
 
-Commidity *Queue::front()
+struct mymsg_buffer Queue::front()
 {
     if (head == -1)
     {
         cout << "Queue is empty " << endl;
-        return 0;
+        return {};
     }
     return data[head];
 }
 
-void Queue::push(Commidity *elem)
+void Queue::push(struct mymsg_buffer elem)
 {
     if (size == MAX_SIZE)
     {
@@ -55,14 +63,14 @@ void Queue::push(Commidity *elem)
     size++;
 }
 
-Commidity *Queue::pop()
+struct mymsg_buffer Queue::pop()
 {
     if (head == -1)
     {
         cout << "Queue is empty " << endl;
-        return 0;
+        return {};
     }
-    Commidity *temp = data[head];
+    struct mymsg_buffer temp = data[head];
     for (int i = 0; i < size; i++)
     {
         data[i] = data[i + 1];
