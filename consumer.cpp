@@ -1,3 +1,4 @@
+#include <strings.h>
 #define AVG_NO 4
 
 #include "msg.h"
@@ -36,43 +37,101 @@ int main(int argc, char *argv[])
         commodities[s] = comm;
     }
 
-    int shmid; // shared memory id
-    key_t key; // shared memory key
+    union semun {
+        int val;
+        struct semid_ds *buf;
+        ushort array[1]; // or ushort * array
+    } sem_attr;
 
-    // generate unique key for the shared memeory
+    key_t sem_key;
+
+    int sem_mutex, sem_buffer, sem_signal;
+
+    /* Mutual Exclusion Semaphore */
+
+    if ((sem_key = ftok(SEM_MUTEX, 'A')) == -1)
+    {
+        cout << "mutex_key frtok - error\n";
+        return -1;
+    }
+    if ((sem_mutex = semget(sem_key, 1, PERMS | IPC_CREAT)) == -1)
+    {
+        cout << "mutex_key semget- error\n";
+        return -1;
+    }
+
+    sem_attr.val = 0; // locking the smeaphore for now
+
+    if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
+    {
+        cout << "semctl mutex_sem - error\n";
+        return -1;
+    }
+
+    int shmid;
+
+    key_t key;
+
+    // get unique key
     if ((key = ftok(SHARED_MEM_NAME, 'A')) == -1)
     {
         cout << "frtok - error\n";
         return -1;
     }
 
-    // create to shared memory
-    /* if ((shmid = shmget(key, sizeof(Queue), PERMS | IPC_CREAT)) == -1) */
-    if ((shmid = shmget(key, sizeof(Queue *) * 1024 + 20, PERMS | IPC_CREAT)) == -1)
+    if ((shmid = shmget(key, sizeof(struct mymsg_buffer) * SHARED_MEM_SIZE, PERMS | IPC_CREAT)) == -1)
     {
-        cout << "shmget - error\n";
+        cout << "smsget - error\n";
         return -1;
     }
 
+    int indexer_shmid;
+    key_t indexer_key;
+
+    if ((indexer_key = ftok(INDEXER_NAME, 'A')) == -1)
+    {
+        cout << "frtok - error\n";
+        return -1;
+    }
+
+    if ((indexer_shmid = shmget(indexer_key, sizeof(int) * 2, PERMS | IPC_CREAT)) == -1)
+    {
+        cout << "smsget - error\n";
+        return -1;
+    }
+
+    int *indexer_shm;
+    struct mymsg_buffer *q;
+
     // attach to shared memory
     void *tmp = shmat(shmid, (void *)0, 0);
-
-    Queue *q = (Queue *)tmp;
-
-    q->clear();
+    void *tmp1 = shmat(indexer_shmid, (void *)0, 0);
 
     char *recieved_comm_name;
     double recieved_comm_price;
-    long long count = 0;
+
+    q = (struct mymsg_buffer *)tmp;
+
+    indexer_shm = (int *)tmp1;
+
+    *indexer_shm = 0;
+    int j = 1;
+    int m;
 
     while (true)
     {
-        if (q->getSize() == 0)
+        /* dbg(*indexer_shm); */
+        if (*indexer_shm == 0)
         {
             continue;
         }
 
-        struct mymsg_buffer recieved = q->pop();
+        /* cout << q[*indexer_shm].name << endl; */
+        /* cout << *indexer_shm << endl; */
+        *indexer_shm -= 1;
+
+        struct mymsg_buffer recieved = q[*indexer_shm];
+        /* j++; */
 
         recieved_comm_name = recieved.name;
         recieved_comm_price = recieved.price;
@@ -131,6 +190,7 @@ int main(int argc, char *argv[])
         }
 
         print_table(commodities, names_in_order);
+        this_thread::sleep_for(chrono::milliseconds(10));
     }
 
     shmdt(q);

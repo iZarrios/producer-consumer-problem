@@ -47,7 +47,7 @@ struct mymsg_buffer Queue::front()
 
 void Queue::push(struct mymsg_buffer elem)
 {
-    if (size == MAX_SIZE)
+    if (size == SHARED_MEM_SIZE)
     {
         cout << "Queue is full " << endl;
         return;

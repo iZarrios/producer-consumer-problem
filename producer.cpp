@@ -28,11 +28,54 @@ int main(int argc, char *argv[])
     double std_dev = stod(argv[3]);
     int sleep = stoi(argv[4]);
 
+    key_t sem_key;
+
+    int sem_mutex, sem_buffer, sem_signal;
+
+    /* Mutual Exclusion Semaphore */
+
+    if ((sem_key = ftok(SEM_MUTEX, 'A')) == -1)
+    {
+        cout << "mutex_key frtok - error\n";
+        return -1;
+    }
+    if ((sem_mutex = semget(sem_key, 1, PERMS)) == -1)
+    {
+        cout << "mutex_key semget- error\n";
+        return -1;
+    }
+
+    /* Buffer Semaphore Count */
+    if ((sem_key = ftok(SEM_BUFFER_COUNT, 'A')) == -1)
+    {
+        cout << "mutex_key frtok - error\n";
+        return -1;
+    }
+    if ((sem_buffer = semget(sem_key, 1, PERMS)) == -1)
+    {
+        cout << "sem_buffer semget- error\n";
+        return -1;
+    }
+
+    /* Signal Semaphore */
+
+    if ((sem_key = ftok(SEM_SIG, 'A')) == -1)
+    {
+        cout << "sem_sig frtok - error\n";
+        return -1;
+    }
+    if ((sem_signal = semget(sem_key, 1, PERMS)) == -1)
+    {
+        cout << "sem-sig semget- error\n";
+        return -1;
+    }
+
     int shmid;
 
     key_t key;
 
-    // get unique key
+    /* SHARED MEMORY */
+
     if ((key = ftok(SHARED_MEM_NAME, 'A')) == -1)
     {
         cout << "frtok - error\n";
@@ -41,20 +84,21 @@ int main(int argc, char *argv[])
 
     if ((shmid = shmget(key, sizeof(struct mymsg_buffer) * SHARED_MEM_SIZE, PERMS)) == -1)
     {
-        cout << "smsget - error\n";
+        cout << "shmget - error\n";
         return -1;
     }
 
     int indexer_shmid;
     key_t indexer_key;
 
+    /* Indexer SHARED MEMORY */
     if ((indexer_key = ftok(INDEXER_NAME, 'A')) == -1)
     {
         cout << "frtok - error\n";
         return -1;
     }
 
-    if ((indexer_shmid = shmget(key, sizeof(int) * 2, PERMS)) == -1)
+    if ((indexer_shmid = shmget(indexer_key, sizeof(int) * 2, PERMS)) == -1)
     {
         cout << "smsget - error\n";
         return -1;
@@ -62,8 +106,19 @@ int main(int argc, char *argv[])
 
     printf("Ready to Send\n");
 
+    int *indexer_shm;
+    struct mymsg_buffer *q;
+
     // attach to shared memory
     void *tmp = shmat(shmid, (void *)0, 0);
+    void *tmp1 = shmat(indexer_shmid, (void *)0, 0);
+
+    q = (struct mymsg_buffer *)tmp;
+
+    indexer_shm = (int *)tmp1;
+
+    cout << *indexer_shm << endl;
+    *indexer_shm += 1;
 
     /* Queue *q = (Queue *)tmp; */
 
@@ -72,14 +127,24 @@ int main(int argc, char *argv[])
     while (true)
     {
         double number = distribution(generator);
+        if (*indexer_shm == SHARED_MEM_SIZE) // 1024
+        {
+            *indexer_shm = 1;
+        }
 
         struct mymsg_buffer to_push;
         to_push.price = number;
         strcpy(to_push.name, commodity);
 
-        q->push(to_push);
+        q[*indexer_shm] = to_push;
 
-        printf("Size of Queue: %lld\n", q->getSize());
+        *indexer_shm += 1;
+
+        cout << "Increased Indexer=" << *indexer_shm << endl;
+
+        /* q->push(to_push); */
+
+        /* printf("Size of Queue: %lld\n", q->getSize()); */
 
         this_thread::sleep_for(chrono::milliseconds(sleep));
     }

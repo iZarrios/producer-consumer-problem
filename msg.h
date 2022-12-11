@@ -5,7 +5,7 @@
 #define INDEXER_NAME "indexer"
 
 #define SEM_MUTEX "sem-mutex"
-#define SEM_BUFFER_COUNT "SEM-buffer-count"
+#define SEM_BUFFER_COUNT "sem-buffer-count"
 #define SEM_SIG "sem-sig"
 
 #define dbg(a) cout << #a << "=" << a << endl
@@ -46,18 +46,18 @@
 #include <sys/sem.h>
 #include <sys/types.h>
 
-union my_semun {
-    int val;               /* val for SETVAL */
-    struct semid_ds *buf;  /* Buffer for IPC_STAT and IPC_SET */
-    unsigned short *array; /* Buffer for GETALL and SETALL */
-    struct seminfo *__buf; /* Buffer for IPC_INFO and SEM_INFO*/
-};
+/* union my_semun { */
+/*     int val; */               
+/*     struct semid_ds *buf; */  
+/*     unsigned short *array; */ 
+/*     struct seminfo *__buf; */ 
+/* }; */
 
-union semun {
-    int val;
-    struct semid_ds *buf;
-    ushort array[1];
-} sem_attr;
+/* union semun { */
+/*     int val; */
+/*     struct semid_ds *buf; */
+/*     ushort array[1]; // or ushort* array */
+/* } sem_attr; */
 
 struct mymsg_buffer
 {
@@ -69,6 +69,9 @@ struct mymsg_buffer
         memset(name, '\0', strlen(name));
     }
 };
+
+/* struct shared_mem { */
+/*     mymsg_buffer */
 
 class Commidity
 {
