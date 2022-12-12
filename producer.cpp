@@ -122,8 +122,13 @@ int main(int argc, char *argv[])
     sem_buf[0].sem_op = 0;
     sem_buf[0].sem_flg = 0;
 
+    /* char time_buffer[400]; */
+    struct tm tm_now;
+    time_t now = time(nullptr);
+
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(mean, std_dev);
+    char custom_message[1024];
     double number;
     while (true)
     {
@@ -134,16 +139,16 @@ int main(int argc, char *argv[])
             printf("Producer sem buffer");
             return -1;
         }
-        cout<<"I Can produce"<<endl;
         // get mutual exclusion(lock mutex)
         sem_buf[0].sem_op = -1;
+
+        my_log_msg(commodity, tm_now, now, "trying to get mutex");
 
         if (semop(sem_mutex, sem_buf, 1) == -1)
         {
             printf("Producer mutex");
             return -1;
         }
-        cout<<"Got Mutual Exclusion"<<endl;
 
         // critical section here
 
@@ -151,12 +156,19 @@ int main(int argc, char *argv[])
 
         number = distribution(generator);
 
+        sprintf(custom_message, "generating a new value %.2lf", number);
+
+        my_log_msg(commodity, tm_now, now, custom_message);
+
         q->data[q->buffer_index].price = number;
 
         strcpy(q->data[q->buffer_index].name, commodity);
 
-
         q->buffer_index++;
+
+        sprintf(custom_message, "placing %.2lf on shared buffer", number);
+
+        my_log_msg(commodity, tm_now, now, custom_message);
 
         if (q->buffer_index == SHARED_MEM_SIZE)
         {
@@ -181,6 +193,9 @@ int main(int argc, char *argv[])
             printf("Producer signal");
             return -1;
         }
+
+        sprintf(custom_message, "sleeping for %d", sleep);
+        my_log_msg(commodity, tm_now, now, custom_message);
 
         this_thread::sleep_for(chrono::milliseconds(sleep));
     }

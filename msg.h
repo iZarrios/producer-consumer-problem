@@ -28,9 +28,13 @@
 
 #include <queue>
 
+#include<time.h>
+
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/types.h>
+
+void my_log_msg(char *commodity, struct tm tm_now, time_t now,std::string custom_message);
 
 /* union my_semun { */
 /*     int val; */
