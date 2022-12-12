@@ -17,14 +17,22 @@
 #endif
 
 using namespace std;
+void signalHandler(int sig_num);
+key_t sem_key1;
+key_t sem_key2;
+key_t sem_key3;
+int shmid;
+struct shared_mem *q;
 
 void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order);
 
 int main(int argc, char *argv[])
 {
+    signal(SIGINT, signalHandler);
+    /* while (true); */
     // Initial Commodities
     vector<string> names_in_order = {"GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
-                                     "NICKEL", "LEAD",   "ZINC",    "MATHANOL",   "COTTON"};
+                                     "NICKEL", "LEAD",   "ZINC",    "METHANOL",   "COTTON"};
     // Sort by Name
     sort(names_in_order.begin(), names_in_order.end());
 
@@ -43,18 +51,20 @@ int main(int argc, char *argv[])
         ushort array[1]; // or ushort * array
     } sem_attr;
 
-    key_t sem_key;
+    key_t sem_key1;
+    key_t sem_key2;
+    key_t sem_key3;
 
     int sem_mutex, sem_buffer, sem_signal;
 
     /* Mutual Exclusion Semaphore */
 
-    if ((sem_key = ftok(SEM_MUTEX, 'A')) == -1)
+    if ((sem_key1 = ftok(SEM_MUTEX, 'A')) == -1)
     {
         cout << "mutex_key frtok - error\n";
         return -1;
     }
-    if ((sem_mutex = semget(sem_key, 1, PERMS | IPC_CREAT)) == -1)
+    if ((sem_mutex = semget(sem_key1, 1, PERMS | IPC_CREAT)) == -1)
     {
         cout << "mutex_key semget- error\n";
         return -1;
@@ -68,8 +78,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int shmid;
-
     key_t key;
 
     // get unique key
@@ -78,60 +86,111 @@ int main(int argc, char *argv[])
         cout << "frtok - error\n";
         return -1;
     }
-
-    if ((shmid = shmget(key, sizeof(struct mymsg_buffer) * SHARED_MEM_SIZE, PERMS | IPC_CREAT)) == -1)
+    else
     {
-        cout << "smsget - error\n";
-        return -1;
+        cout << "Got key shared memory\n";
     }
 
-    int indexer_shmid;
-    key_t indexer_key;
-
-    if ((indexer_key = ftok(INDEXER_NAME, 'A')) == -1)
+    if ((shmid = shmget(key, sizeof(struct shared_mem), PERMS | IPC_CREAT)) == -1)
     {
-        cout << "frtok - error\n";
+        cout << "line 84:shmget - error\n";
+        cout << "Doom\n";
         return -1;
     }
-
-    if ((indexer_shmid = shmget(indexer_key, sizeof(int) * 2, PERMS | IPC_CREAT)) == -1)
+    else
     {
-        cout << "smsget - error\n";
-        return -1;
+        cout << "Got id shared memory\n";
     }
-
-    int *indexer_shm;
-    struct mymsg_buffer *q;
 
     // attach to shared memory
     void *tmp = shmat(shmid, (void *)0, 0);
-    void *tmp1 = shmat(indexer_shmid, (void *)0, 0);
 
     char *recieved_comm_name;
     double recieved_comm_price;
 
-    q = (struct mymsg_buffer *)tmp;
+    q = (struct shared_mem *)tmp;
 
-    indexer_shm = (int *)tmp1;
+    if (q == (struct shared_mem *)-1)
+    {
+        printf("Q is -1\n");
+        return -1;
+    }
+    else
+    {
+        printf("Q is not null\n");
+    }
 
-    *indexer_shm = 0;
-    int j = 1;
-    int m;
+    q->buffer_index = 0;
+    q->buffer_index_print = 0;
+
+    /* Semaphore Buffer Count */
+    if ((sem_key2 = ftok(SEM_BUFFER_COUNT, 'A')) == -1)
+    {
+        cout << "mutex_key frtok - error\n";
+        return -1;
+    }
+    if ((sem_buffer = semget(sem_key2, 1, PERMS | IPC_CREAT)) == -1)
+    {
+        cout << "sem_buffer semget- error\n";
+        return -1;
+    }
+    sem_attr.val = SHARED_MEM_SIZE; // intially, all spaces are available (1024 for now)
+
+    if (semctl(sem_buffer, 0, SETVAL, sem_attr) == -1)
+    {
+        cout << "semctl buffer_sem - error\n";
+        return -1;
+    }
+
+    /* Signal Semaphore */
+
+    if ((sem_key3 = ftok(SEM_SIG, 'A')) == -1)
+    {
+        cout << "sem_sig frtok - error\n";
+        return -1;
+    }
+    if ((sem_signal = semget(sem_key3, 1, PERMS | IPC_CREAT)) == -1)
+    {
+        cout << "sem-sig semget- error\n";
+        return -1;
+    }
+
+    sem_attr.val = 0; // intially, all spaces are empty to produce in(1024 for now)
+
+    if (semctl(sem_signal, 0, SETVAL, sem_attr) == -1)
+    {
+        cout << "semctl sem_signal - error\n";
+        return -1;
+    }
+
+    sem_attr.val = 1;
+    if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
+    {
+        cout << "semctl unlocking - error\n";
+        return -1;
+    }
+
+    struct sembuf sem_buf[1];
+
+    sem_buf[0].sem_num = 0;
+    sem_buf[0].sem_op = 0;
+    sem_buf[0].sem_flg = 0;
 
     while (true)
     {
-        /* dbg(*indexer_shm); */
-        if (*indexer_shm == 0)
+        sem_buf[0].sem_op = -1;
+
+        if (semop(sem_signal, sem_buf, 1) == -1)
+        {
+            printf("Semop sem_signal in while\n");
+            return -1;
+        }
+        struct mymsg_buffer recieved = q->data[q->buffer_index];
+
+        if (strlen(recieved.name) == 0)
         {
             continue;
         }
-
-        /* cout << q[*indexer_shm].name << endl; */
-        /* cout << *indexer_shm << endl; */
-        *indexer_shm -= 1;
-
-        struct mymsg_buffer recieved = q[*indexer_shm];
-        /* j++; */
 
         recieved_comm_name = recieved.name;
         recieved_comm_price = recieved.price;
@@ -190,13 +249,50 @@ int main(int argc, char *argv[])
         }
 
         print_table(commodities, names_in_order);
-        this_thread::sleep_for(chrono::milliseconds(10));
-    }
 
-    shmdt(q);
+        q->buffer_index_print++;
+        if (q->buffer_index_print == SHARED_MEM_SIZE)
+        {
+            q->buffer_index_print = 0;
+        }
+
+        sem_buf[0].sem_op = 1;
+
+        if (semop(sem_buffer, sem_buf, 1) == -1)
+        {
+            printf("unlocking sem buffer cnsumer line 240");
+            return -1;
+        }
+    }
     return 0;
 }
 
+void delete_semaphore(key_t sem_key)
+{
+    int sem_id, ctl_res;
+    if ((sem_id = semget(sem_key, 1, 0)) == -1)
+    {
+        printf("error getting key while deleting semaphore");
+        return;
+    }
+    if ((ctl_res = semctl(sem_id, 0, IPC_RMID)) == -1)
+    {
+        printf("error deleting semaphore");
+        return;
+    }
+}
+void signalHandler(int sig_num)
+{
+    shmctl(shmid, IPC_RMID, nullptr);
+    shmdt(q);
+    delete_semaphore(sem_key1);
+    delete_semaphore(sem_key2);
+    delete_semaphore(sem_key3);
+    /* printf("Done Cleaning\n"); */
+    cout << endl;
+    exit(0);
+    signal(SIGINT, signalHandler);
+}
 void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order)
 {
     string color_price, color_avg_price;
