@@ -1,5 +1,3 @@
-#include <string>
-#define dbg(a) cout << #a << "=" << a << endl
 
 #include "msg.h"
 #include <bits/stdc++.h>
@@ -7,36 +5,29 @@
 
 #include "Queue.h"
 
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 using namespace std;
-
-void signalHandler(int sig_num);
 
 key_t sem_key1;
 key_t sem_key2;
 key_t sem_key3;
 int shmid;
-struct shared_mem *q;
+struct shared_memory *q;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 5)
+    if (argc != 6)
     {
         cout << "Error wrong number of args\n";
         return 0;
     }
 
-    /* signal(SIGINT, signalHandler); */
-
     char *commodity = argv[1];
     double mean = stod(argv[2]);
     double std_dev = stod(argv[3]);
     int sleep = stoi(argv[4]);
+    int buffer_size = atoi(argv[5]);
 
     union semun {
         int val;
@@ -69,7 +60,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if ((shmid = shmget(key, sizeof(struct shared_mem), PERMS)) == -1)
+    if ((shmid = shmget(key, sizeof(struct shared_memory), PERMS)) == -1)
     /* if ((shmid = shmget(key, sizeof(struct shared_mem), PERMS)) == -1) */
     {
         cout << "shmget - error\n";
@@ -81,9 +72,11 @@ int main(int argc, char *argv[])
     // attach to shared memory
     void *tmp = shmat(shmid, (void *)0, 0);
 
-    q = (struct shared_mem *)tmp;
+    // cast to our shared memory struct
+    q = (struct shared_memory *)tmp;
 
-    if (q == (struct shared_mem *)-1)
+    // if pointer is null
+    if (q == (struct shared_memory *)-1)
     {
         printf("Q is -1");
         return -1;
@@ -101,8 +94,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /* Signal Semaphore */
-
+    /* Signal Semaphore for reading */
     if ((sem_key3 = ftok(SEM_SIG, 'A')) == -1)
     {
         cout << "sem_sig frtok - error\n";
@@ -122,12 +114,12 @@ int main(int argc, char *argv[])
     sem_buf[0].sem_op = 0;
     sem_buf[0].sem_flg = 0;
 
-    /* char time_buffer[400]; */
     struct tm tm_now;
-    time_t now = time(nullptr);
+    time_t now;
 
     std::default_random_engine generator;
     std::normal_distribution<double> distribution(mean, std_dev);
+
     char custom_message[1024];
     double number;
     while (true)
@@ -141,8 +133,9 @@ int main(int argc, char *argv[])
         }
         // get mutual exclusion(lock mutex)
         sem_buf[0].sem_op = -1;
+        now = time(nullptr);
 
-        my_log_msg(commodity, tm_now, now, "trying to get mutex");
+        my_log_msg(commodity, tm_now, now, "trying to get mutex on shared buffer");
 
         if (semop(sem_mutex, sem_buf, 1) == -1)
         {
@@ -152,7 +145,7 @@ int main(int argc, char *argv[])
 
         // critical section here
 
-        struct mymsg_buffer to_push = q->data[q->buffer_index];
+        struct mymsg_buffer to_push = q->data[q->buffer_index_produce];
 
         number = distribution(generator);
 
@@ -160,19 +153,19 @@ int main(int argc, char *argv[])
 
         my_log_msg(commodity, tm_now, now, custom_message);
 
-        q->data[q->buffer_index].price = number;
+        q->data[q->buffer_index_produce].price = number;
 
-        strcpy(q->data[q->buffer_index].name, commodity);
+        strcpy(q->data[q->buffer_index_produce].name, commodity);
 
-        q->buffer_index++;
+        q->buffer_index_produce++;
 
         sprintf(custom_message, "placing %.2lf on shared buffer", number);
 
         my_log_msg(commodity, tm_now, now, custom_message);
 
-        if (q->buffer_index == SHARED_MEM_SIZE)
+        if (q->buffer_index_produce == q->N)
         {
-            q->buffer_index = 0;
+            q->buffer_index_produce = 0;
         }
 
         // end of critical section
@@ -201,31 +194,4 @@ int main(int argc, char *argv[])
     }
 
     return 0;
-}
-
-void delete_semaphore(key_t sem_key)
-{
-    int sem_id, ctl_res;
-    if ((sem_id = semget(sem_key, 1, 0)) == -1)
-    {
-        printf("error getting key while deleting semaphore");
-        return;
-    }
-    if ((ctl_res = semctl(sem_id, 0, IPC_RMID)) == -1)
-    {
-        printf("error deleting semaphore");
-        return;
-    }
-}
-
-void signalHandler(int sig_num)
-{
-    shmctl(shmid, IPC_RMID, nullptr);
-    shmdt(q);
-    delete_semaphore(sem_key1);
-    delete_semaphore(sem_key2);
-    delete_semaphore(sem_key3);
-    printf("done");
-    exit(0);
-    signal(SIGINT, signalHandler);
 }

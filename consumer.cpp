@@ -1,35 +1,48 @@
-#include <strings.h>
 #define AVG_NO 4
 
 #include "msg.h"
 
 #include <bits/stdc++.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/types.h>
 
 #include "Queue.h"
 
-#ifdef _WIN32
-#include <Windows.h>
-#else
+/* #ifdef _WIN32 */
+/* #include <Windows.h> */
+/* #else */
 #include <unistd.h>
-#endif
+/* #endif */
 
 using namespace std;
+
 void signalHandler(int sig_num);
+void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order);
+
 key_t sem_key1;
 key_t sem_key2;
 key_t sem_key3;
 int shmid;
-struct shared_mem *q;
-
-void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order);
+struct shared_memory *q;
 
 int main(int argc, char *argv[])
 {
     signal(SIGINT, signalHandler);
+
+    if (argc != 2)
+    {
+        printf("./consumer BUFFER_SIZE\n");
+        return -1;
+    }
+
+    int buffer_size = atoi(argv[1]);
+
+    cout << "Made Buffer with size " << buffer_size << endl;
+
+    if (buffer_size > SHARED_MEM_SIZE)
+    {
+        buffer_size = SHARED_MEM_SIZE;
+    }
     /* while (true); */
+
     // Initial Commodities
     vector<string> names_in_order = {"GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
                                      "NICKEL", "LEAD",   "ZINC",    "METHANOL",   "COTTON"};
@@ -51,9 +64,9 @@ int main(int argc, char *argv[])
         ushort array[1]; // or ushort * array
     } sem_attr;
 
-    key_t sem_key1;
-    key_t sem_key2;
-    key_t sem_key3;
+    // key_t sem_key1;
+    // key_t sem_key2;
+    // key_t sem_key3;
 
     int sem_mutex, sem_buffer, sem_signal;
 
@@ -70,17 +83,19 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    sem_attr.val = 0; // locking the smeaphore for now
+    // locking the smeaphore at the start
+    // as we have not made the other semaphores to function
+    sem_attr.val = 0;
 
     if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
     {
-        cout << "semctl mutex_sem - error\n";
+        cout << "semctl sem_mutex - error\n";
         return -1;
     }
 
     key_t key;
 
-    // get unique key
+    // get key for the shared memory
     if ((key = ftok(SHARED_MEM_NAME, 'A')) == -1)
     {
         cout << "frtok - error\n";
@@ -91,15 +106,11 @@ int main(int argc, char *argv[])
         cout << "Got key shared memory\n";
     }
 
-    if ((shmid = shmget(key, sizeof(struct shared_mem), PERMS | IPC_CREAT)) == -1)
+    if ((shmid = shmget(key, sizeof(struct shared_memory), PERMS | IPC_CREAT)) == -1)
     {
         cout << "line 84:shmget - error\n";
         cout << "Doom\n";
         return -1;
-    }
-    else
-    {
-        cout << "Got id shared memory\n";
     }
 
     // attach to shared memory
@@ -108,20 +119,19 @@ int main(int argc, char *argv[])
     char *recieved_comm_name;
     double recieved_comm_price;
 
-    q = (struct shared_mem *)tmp;
+    // cast to our shared memory struct
+    q = (struct shared_memory *)tmp;
 
-    if (q == (struct shared_mem *)-1)
+    // if q is null
+    if (q == (struct shared_memory *)-1)
     {
-        printf("Q is -1\n");
+        printf("Q is null\n");
         return -1;
     }
-    else
-    {
-        printf("Q is not null\n");
-    }
 
-    q->buffer_index = 0;
-    q->buffer_index_print = 0;
+    q->buffer_index_produce = 0;
+    q->buffer_index_consume = 0;
+    q->N = buffer_size;
 
     /* Semaphore Buffer Count */
     if ((sem_key2 = ftok(SEM_BUFFER_COUNT, 'A')) == -1)
@@ -134,7 +144,9 @@ int main(int argc, char *argv[])
         cout << "sem_buffer semget- error\n";
         return -1;
     }
-    sem_attr.val = SHARED_MEM_SIZE; // intially, all spaces are available (1024 for now)
+
+    // intially, all spaces are available for the producer to produce
+    sem_attr.val = q->N;
 
     if (semctl(sem_buffer, 0, SETVAL, sem_attr) == -1)
     {
@@ -155,7 +167,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    sem_attr.val = 0; // intially, all spaces are empty to produce in(1024 for now)
+    // intially, all spaces are empty to produce in(1024 for now)
+    sem_attr.val = 0;
 
     if (semctl(sem_signal, 0, SETVAL, sem_attr) == -1)
     {
@@ -163,6 +176,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // unlocking the mutex
     sem_attr.val = 1;
     if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
     {
@@ -182,10 +196,10 @@ int main(int argc, char *argv[])
 
         if (semop(sem_signal, sem_buf, 1) == -1)
         {
-            printf("Semop sem_signal in while\n");
+            printf("Semop consumer semaphore in while\n");
             return -1;
         }
-        struct mymsg_buffer recieved = q->data[q->buffer_index];
+        struct mymsg_buffer recieved = q->data[q->buffer_index_produce];
 
         if (strlen(recieved.name) == 0)
         {
@@ -222,6 +236,7 @@ int main(int argc, char *argv[])
 
         comm_recieved_to_change->avg_price = new_avg;
 
+        // setting avg price state and value
         if (comm_recieved_to_change->last_avg_price > comm_recieved_to_change->avg_price)
         {
             comm_recieved_to_change->avg_price_state = DECREASED;
@@ -235,6 +250,7 @@ int main(int argc, char *argv[])
             comm_recieved_to_change->avg_price_state = UNCHANGED;
         }
 
+        // setting price state
         if (comm_recieved_to_change->last_price > comm_recieved_to_change->price)
         {
             comm_recieved_to_change->price_state = DECREASED;
@@ -248,19 +264,20 @@ int main(int argc, char *argv[])
             comm_recieved_to_change->price_state = UNCHANGED;
         }
 
+        // print prices table
         print_table(commodities, names_in_order);
 
-        q->buffer_index_print++;
-        if (q->buffer_index_print == SHARED_MEM_SIZE)
+        q->buffer_index_consume++;
+        if (q->buffer_index_consume == q->N)
         {
-            q->buffer_index_print = 0;
+            q->buffer_index_consume = 0;
         }
 
         sem_buf[0].sem_op = 1;
 
         if (semop(sem_buffer, sem_buf, 1) == -1)
         {
-            printf("unlocking sem buffer cnsumer line 240");
+            printf("unlocking sem buffer consumer line 240");
             return -1;
         }
     }
@@ -281,6 +298,7 @@ void delete_semaphore(key_t sem_key)
         return;
     }
 }
+
 void signalHandler(int sig_num)
 {
     shmctl(shmid, IPC_RMID, nullptr);
@@ -293,6 +311,7 @@ void signalHandler(int sig_num)
     exit(0);
     signal(SIGINT, signalHandler);
 }
+
 void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order)
 {
     string color_price, color_avg_price;
