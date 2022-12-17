@@ -135,6 +135,13 @@ int main(int argc, char *argv[])
         // yes.
         now = time(nullptr);
 
+        sem_buf[0].sem_op = -1;
+        if (semop(sem_mutex, sem_buf, 1) == -1)
+        {
+            printf("Producer sem buffer\n");
+            return -1;
+        }
+
         // critical section here
 
         struct mymsg_buffer to_push = q->data[q->buffer_index_produce];

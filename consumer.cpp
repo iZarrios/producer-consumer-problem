@@ -201,15 +201,15 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        /* sem_attr.val = 0; */
-        /* if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1) */
-        /* { */
-        /*     cout << "semctl sem_mutex - error\n"; */
-        /*     return -1; */
-        /* } */
+        // sem_attr.val = 0;
+        // if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
+        // {
+        //     cout << "semctl sem_mutex - error\n";
+        //     return -1;
+        // }
 
-        struct mymsg_buffer recieved = q->data[q->buffer_index_produce];
-        // struct mymsg_buffer recieved = q->data[q->buffer_index_consume];
+        // struct mymsg_buffer recieved = q->data[q->buffer_index_produce];
+        struct mymsg_buffer recieved = q->data[q->buffer_index_consume];
 
         if (strlen(recieved.name) == 0)
         {
@@ -283,12 +283,12 @@ int main(int argc, char *argv[])
             q->buffer_index_consume = 0;
         }
 
-        /* sem_attr.val = 1; */
-        /* if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1) */
-        /* { */
-        /*     cout << "semctl sem_mutex - error\n"; */
-        /*     return -1; */
-        /* } */
+        // sem_attr.val = 1;
+        // if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
+        // {
+        //     cout << "semctl sem_mutex - error\n";
+        //     return -1;
+        // }
 
         sem_buf[0].sem_op = 1;
 
