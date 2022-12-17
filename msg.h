@@ -2,14 +2,11 @@
 
 #define SHARED_MEM_NAME "shared_mem"
 
-// TODO: to be changed
-#define SHARED_MEM_SIZE 50
+#define SHARED_MEM_SIZE 100
 
 #define SEM_MUTEX "sem-mutex"
-#define SEM_BUFFER_COUNT "sem-buffer-count"
-#define SEM_SIG "sem-sig"
-
-#define dbg(a) cout << #a << "=" << a << endl
+#define SEM_BUFFER_COUNT "sem-buffer-client"
+#define SEM_SERVER "sem-server"
 
 #define UP_ARROW "↑"
 #define DOWN_ARROW "↓"
@@ -41,7 +38,7 @@
 #include <sys/shm.h>
 #include <sys/types.h>
 
-void my_log_msg(char *commodity, struct tm tm_now, time_t now, std::string custom_message);
+void my_log_msg(char *, struct tm, time_t, std::string);
 
 struct mymsg_buffer
 {
@@ -61,6 +58,25 @@ struct shared_memory
     int N; // actual size of the buffer
     int buffer_index_produce;
     int buffer_index_consume;
+};
+
+struct shared_memory1
+{
+    // same as in the queue implementation we can also reallocate more space if needed by the user
+    int *data;
+    int N; // actual size of the buffer
+    int buffer_index_produce;
+    int buffer_index_consume;
+};
+
+class SharedMemory
+{
+  public:
+    struct mymsg_buffer *data;
+    int N;
+    int buffer_index_produce;
+    int buffer_index_consume;
+    SharedMemory(int);
 };
 
 class Commidity
