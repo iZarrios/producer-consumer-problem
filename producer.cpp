@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
         ushort array[1]; // or ushort * array
     } sem_attr;
 
-    int sem_mutex, sem_buffer, sem_signal;
+    int sem_mutex, sem_buffer, sem_server;
 
     /* Mutual Exclusion Semaphore */
 
@@ -95,12 +95,12 @@ int main(int argc, char *argv[])
     }
 
     /* Signal Semaphore for reading */
-    if ((sem_key3 = ftok(SEM_SIG, 'A')) == -1)
+    if ((sem_key3 = ftok(SEM_SERVER, 'A')) == -1)
     {
         cout << "sem_sig frtok - error\n";
         return -1;
     }
-    if ((sem_signal = semget(sem_key3, 1, PERMS)) == -1)
+    if ((sem_server = semget(sem_key3, 1, PERMS)) == -1)
     {
         cout << "sem-sig semget- error\n";
         return -1;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
     /* Queue *q = (Queue *)tmp; */
 
-    struct sembuf sem_buf[1];
+    struct sembuf sem_buf[2];
 
     sem_buf[0].sem_num = 0;
     sem_buf[0].sem_op = 0;
@@ -128,20 +128,12 @@ int main(int argc, char *argv[])
         sem_buf[0].sem_op = -1;
         if (semop(sem_buffer, sem_buf, 1) == -1)
         {
-            printf("Producer sem buffer");
+            printf("Producer sem buffer\n");
             return -1;
         }
-        // get mutual exclusion(lock mutex)
-        sem_buf[0].sem_op = -1;
+
+        // yes.
         now = time(nullptr);
-
-        my_log_msg(commodity, tm_now, now, "trying to get mutex on shared buffer");
-
-        if (semop(sem_mutex, sem_buf, 1) == -1)
-        {
-            printf("Producer mutex");
-            return -1;
-        }
 
         // critical section here
 
@@ -181,13 +173,13 @@ int main(int argc, char *argv[])
 
         sem_buf[0].sem_op = 1;
 
-        if (semop(sem_signal, sem_buf, 1) == -1)
+        if (semop(sem_server, sem_buf, 1) == -1)
         {
-            printf("Producer signal");
+            printf("Producer server sem");
             return -1;
         }
 
-        sprintf(custom_message, "sleeping for %d", sleep);
+        sprintf(custom_message, "sleeping for %d ms", sleep);
         my_log_msg(commodity, tm_now, now, custom_message);
 
         this_thread::sleep_for(chrono::milliseconds(sleep));

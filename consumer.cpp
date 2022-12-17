@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     // key_t sem_key2;
     // key_t sem_key3;
 
-    int sem_mutex, sem_buffer, sem_signal;
+    int sem_mutex, sem_buffer, sem_server;
 
     /* Mutual Exclusion Semaphore */
 
@@ -156,12 +156,12 @@ int main(int argc, char *argv[])
 
     /* Signal Semaphore */
 
-    if ((sem_key3 = ftok(SEM_SIG, 'A')) == -1)
+    if ((sem_key3 = ftok(SEM_SERVER, 'A')) == -1)
     {
         cout << "sem_sig frtok - error\n";
         return -1;
     }
-    if ((sem_signal = semget(sem_key3, 1, PERMS | IPC_CREAT)) == -1)
+    if ((sem_server = semget(sem_key3, 1, PERMS | IPC_CREAT)) == -1)
     {
         cout << "sem-sig semget- error\n";
         return -1;
@@ -170,9 +170,9 @@ int main(int argc, char *argv[])
     // intially, all spaces are empty to produce in(1024 for now)
     sem_attr.val = 0;
 
-    if (semctl(sem_signal, 0, SETVAL, sem_attr) == -1)
+    if (semctl(sem_server, 0, SETVAL, sem_attr) == -1)
     {
-        cout << "semctl sem_signal - error\n";
+        cout << "semctl sem_server - error\n";
         return -1;
     }
 
@@ -194,12 +194,12 @@ int main(int argc, char *argv[])
     {
         sem_buf[0].sem_op = -1;
 
-        if (semop(sem_signal, sem_buf, 1) == -1)
+        if (semop(sem_server, sem_buf, 1) == -1)
         {
             printf("Semop consumer semaphore in while\n");
             return -1;
         }
-        struct mymsg_buffer recieved = q->data[q->buffer_index_produce];
+        struct mymsg_buffer recieved = q->data[q->buffer_index_consume];
 
         if (strlen(recieved.name) == 0)
         {
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
         // print prices table
         print_table(commodities, names_in_order);
 
-        q->buffer_index_consume++;
+        (q->buffer_index_consume)++;
         if (q->buffer_index_consume == q->N)
         {
             q->buffer_index_consume = 0;
@@ -314,6 +314,7 @@ void signalHandler(int sig_num)
 
 void print_table(unordered_map<string, Commidity *> commodities, vector<string> names_in_order)
 {
+    printf("\e[1;1H\e[2J");
     string color_price, color_avg_price;
     string price_arrow, avg_price_arrow;
     printf("+-------------------------------------+\n");
