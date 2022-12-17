@@ -7,7 +7,7 @@ using namespace std;
 
 Queue::Queue()
 {
-    /* data = new Commidity [MAX_SIZE]; */
+    /* data = new Commidity[SHARED_MEM_SIZE]; */
     /* for (int i = 0; i < MAX_SIZE; i++) */
     /* { */
     /*     data[i] = nullptr; */
@@ -25,12 +25,12 @@ void Queue::clear()
     tail = 0;
 }
 
-long long  Queue::getSize()
+long long Queue::get_size()
 {
     return size;
 }
 
-bool Queue::isEmpty()
+bool Queue::is_empty()
 {
     return size == 0;
 }
@@ -47,7 +47,7 @@ struct mymsg_buffer Queue::front()
 
 void Queue::push(struct mymsg_buffer elem)
 {
-    if (size == MAX_SIZE)
+    if (size == SHARED_MEM_SIZE)
     {
         cout << "Queue is full " << endl;
         return;

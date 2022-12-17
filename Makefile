@@ -1,6 +1,6 @@
 CC = g++
 
-.PHONY: all
+.PHONY: clean
 
 
 
@@ -16,11 +16,11 @@ producer.o: producer.cpp
 consumer.o: consumer.cpp
 	$(CC) -c consumer.cpp -g
 
-consumer:  consumer.o msg.o Queue.o
-	$(CC) -o consumer consumer.o msg.o Queue.o -g
+consumer: clean consumer.o msg.o 
+	$(CC) -o consumer consumer.o msg.o -g
 
-producer: msg.o producer.o Queue.o
-	$(CC) -o producer producer.o msg.o Queue.o -g
+producer: clean msg.o producer.o 
+	$(CC) -o producer producer.o msg.o -g
 
 clean:
 	rm -f *.o *.out producer consumer 

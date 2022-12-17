@@ -1,37 +1,22 @@
 #pragma once
-#define SHARED_MEM_NAME "shared_mem"
-#define SHARED_MEM_SIZE 1024
 
-#define INDEXER_NAME "indexer"
+#define SHARED_MEM_NAME "shared_mem"
+
+#define SHARED_MEM_SIZE 100
 
 #define SEM_MUTEX "sem-mutex"
-#define SEM_BUFFER_COUNT "SEM-buffer-count"
-#define SEM_SIG "sem-sig"
+#define SEM_BUFFER_COUNT "sem-buffer-client"
+#define SEM_SERVER "sem-server"
 
-#define dbg(a) cout << #a << "=" << a << endl
 #define UP_ARROW "↑"
 #define DOWN_ARROW "↓"
 
-// the following are UBUNTU/LINUX, and MacOS ONLY terminal color codes.
+#define CYAN "\033[36m"
+#define GREEN "\033[32m"
+#define RED "\033[31m"
 #define RESET "\033[0m"
-#define BLACK "\033[30m"              /* Black */
-#define RED "\033[31m"                /* Red */
-#define GREEN "\033[32m"              /* Green */
-#define YELLOW "\033[33m"             /* Yellow */
-#define BLUE "\033[34m"               /* Blue */
-#define MAGENTA "\033[35m"            /* Magenta */
-#define CYAN "\033[36m"               /* Cyan */
-#define WHITE "\033[37m"              /* White */
-#define BOLDBLACK "\033[1m\033[30m"   /* Bold Black */
-#define BOLDRED "\033[1m\033[31m"     /* Bold Red */
-#define BOLDGREEN "\033[1m\033[32m"   /* Bold Green */
-#define BOLDYELLOW "\033[1m\033[33m"  /* Bold Yellow */
-#define BOLDBLUE "\033[1m\033[34m"    /* Bold Blue */
-#define BOLDMAGENTA "\033[1m\033[35m" /* Bold Magenta */
-#define BOLDCYAN "\033[1m\033[36m"    /* Bold Cyan */
-#define BOLDWHITE "\033[1m\033[37m"   /* Bold White */
 
-#define PERMS 0644
+#define PERMS 0666
 
 #define UNCHANGED 0
 #define INCREASED 1
@@ -40,28 +25,24 @@
 #include <string.h>
 #include <string>
 
+#include <chrono>
+#include <iomanip>
+
+#include <iostream>
 #include <queue>
+
+#include <time.h>
 
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/types.h>
 
-union my_semun {
-    int val;               /* val for SETVAL */
-    struct semid_ds *buf;  /* Buffer for IPC_STAT and IPC_SET */
-    unsigned short *array; /* Buffer for GETALL and SETALL */
-    struct seminfo *__buf; /* Buffer for IPC_INFO and SEM_INFO*/
-};
-
-union semun {
-    int val;
-    struct semid_ds *buf;
-    ushort array[1];
-} sem_attr;
+void my_log_msg(char *, struct tm, time_t, std::string);
 
 struct mymsg_buffer
 {
-    char name[11];
+    char name[11]; // given if max commodity name cant be more than 10 characters
     double price;
 
     mymsg_buffer()
@@ -70,18 +51,54 @@ struct mymsg_buffer
     }
 };
 
+struct shared_memory
+{
+    // same as in the queue implementation we can also reallocate more space if needed by the user
+    struct mymsg_buffer data[SHARED_MEM_SIZE + 1];
+    int N; // actual size of the buffer
+    int buffer_index_produce;
+    int buffer_index_consume;
+};
+
+struct shared_memory1
+{
+    // same as in the queue implementation we can also reallocate more space if needed by the user
+    int *data;
+    int N; // actual size of the buffer
+    int buffer_index_produce;
+    int buffer_index_consume;
+};
+
+class SharedMemory
+{
+  public:
+    struct mymsg_buffer *data;
+    int N;
+    int buffer_index_produce;
+    int buffer_index_consume;
+    SharedMemory(int);
+};
+
 class Commidity
 {
   public:
     std::string name;
 
     double price;
+
     double avg_price;
 
+    // we required last AVG_NO(Look msg.h) prices in the problem statement
+    // so we are going to store them in a queue
+    // and just keep popping and pushing to calculate the average.
     std::queue<double> last_prices;
+
+    // needed to know whether the commodity price  has increased or decreased
+    // with respect to the last reading known by our program.
     double last_price;
     double last_avg_price;
 
+    // {UNCHANGED, INCREASED, DECREASED }
     int price_state;
     int avg_price_state;
 
