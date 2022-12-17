@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
     /* Queue *q = (Queue *)tmp; */
 
-    struct sembuf sem_buf[2];
+    struct sembuf sem_buf[1];
 
     sem_buf[0].sem_num = 0;
     sem_buf[0].sem_op = 0;

@@ -5,7 +5,7 @@ void my_log_msg(char *commodity, struct tm tm_now, time_t t_now, std::string cus
 {
     char time_buffer[400];
     localtime_r(&t_now, &tm_now);
-    strftime(time_buffer, sizeof(time_buffer), "[%d/%m/%Y %T", &tm_now);
+    strftime(time_buffer, sizeof(time_buffer), "%d/%m/%Y %T", &tm_now);
 
     auto now = std::chrono::system_clock::now();
 

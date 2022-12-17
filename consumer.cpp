@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 
     // locking the smeaphore at the start
     // as we have not made the other semaphores to function
-    sem_attr.val = 0;
 
+    sem_attr.val = 0;
     if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1)
     {
         cout << "semctl sem_mutex - error\n";
@@ -192,6 +192,7 @@ int main(int argc, char *argv[])
 
     while (true)
     {
+        // checking whether the consumer can cosume
         sem_buf[0].sem_op = -1;
 
         if (semop(sem_server, sem_buf, 1) == -1)
@@ -199,7 +200,16 @@ int main(int argc, char *argv[])
             printf("Semop consumer semaphore in while\n");
             return -1;
         }
-        struct mymsg_buffer recieved = q->data[q->buffer_index_consume];
+
+        /* sem_attr.val = 0; */
+        /* if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1) */
+        /* { */
+        /*     cout << "semctl sem_mutex - error\n"; */
+        /*     return -1; */
+        /* } */
+
+        struct mymsg_buffer recieved = q->data[q->buffer_index_produce];
+        // struct mymsg_buffer recieved = q->data[q->buffer_index_consume];
 
         if (strlen(recieved.name) == 0)
         {
@@ -267,11 +277,18 @@ int main(int argc, char *argv[])
         // print prices table
         print_table(commodities, names_in_order);
 
-        (q->buffer_index_consume)++;
+        q->buffer_index_consume++;
         if (q->buffer_index_consume == q->N)
         {
             q->buffer_index_consume = 0;
         }
+
+        /* sem_attr.val = 1; */
+        /* if (semctl(sem_mutex, 0, SETVAL, sem_attr) == -1) */
+        /* { */
+        /*     cout << "semctl sem_mutex - error\n"; */
+        /*     return -1; */
+        /* } */
 
         sem_buf[0].sem_op = 1;
 
