@@ -1,0 +1,3 @@
+file(GLOB SRC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+add_library(lib1 STATIC ${SRC_SOURCES})
