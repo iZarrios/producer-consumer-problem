@@ -1,10 +1,9 @@
 #include <bits/stdc++.h>
 #include <unistd.h>
 
-#include <chrono>
 
-#include "Queue.h"
-#include "msg.h"
+#include <Queue.h>
+#include <msg.h>
 
 using namespace std;
 
@@ -25,12 +24,6 @@ int main(int argc, char *argv[]) {
   double std_dev = stod(argv[3]);
   int sleep = stoi(argv[4]);
   int buffer_size = atoi(argv[5]);
-
-  union semun {
-    int val;
-    struct semid_ds *buf;
-    ushort array[1];  // or ushort * array
-  } sem_attr;
 
   int sem_mutex, sem_buffer, sem_server;
 

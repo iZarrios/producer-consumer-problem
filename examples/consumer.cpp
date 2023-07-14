@@ -1,19 +1,15 @@
 #define AVG_NO 4
 
-// #include "msg.h"
-
+#include <Queue.h>
 #include <bits/stdc++.h>
 #include <msg.h>
-
-// #include "Queue.h"
-#include <Queue.h>
 #include <unistd.h>
 
 using namespace std;
 
 void signalHandler(int sig_num);
 void print_table(unordered_map<string, Commodity *> commodities,
-                 vector<string> names_in_order);
+                 set<string> names_in_order);
 
 key_t sem_key1;
 key_t sem_key2;
@@ -39,7 +35,7 @@ int main(int argc, char *argv[]) {
   /* while (true); */
 
   // Initial Commodities
-  vector<string> names_in_order = {
+  set<string> names_in_order = {
       "GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
       "NICKEL", "LEAD",   "ZINC",    "METHANOL",   "COTTON"};
   // Sort by Name
@@ -295,7 +291,7 @@ void signalHandler(int sig_num) {
 }
 
 void print_table(unordered_map<string, Commodity *> commodities,
-                 vector<string> names_in_order) {
+                 set<string> names_in_order) {
   printf("\e[1;1H\e[2J");
   string color_price, color_avg_price;
   string price_arrow, avg_price_arrow;
