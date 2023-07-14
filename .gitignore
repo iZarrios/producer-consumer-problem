@@ -34,3 +34,5 @@
 
 test-code
 .vscode
+.idea
+cmake-build-debug
