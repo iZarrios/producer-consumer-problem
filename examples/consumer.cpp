@@ -1,9 +1,13 @@
+#include <algorithm>
+#include <csignal>
+#include <vector>
 #define AVG_NO 4
 
-#include <Queue.h>
-#include <bits/stdc++.h>
-#include <msg.h>
+#include <set>
+#include <unordered_map>
 #include <unistd.h>
+
+#include "../include/msg.h"
 
 using namespace std;
 
@@ -35,7 +39,7 @@ int main(int argc, char *argv[]) {
   /* while (true); */
 
   // Initial Commodities
-  set<string> names_in_order = {
+  vector<string> names_in_order = {
       "GOLD",   "SILVER", "CRUDOIL", "NATURALGAS", "ALUMINIUM", "COPPER",
       "NICKEL", "LEAD",   "ZINC",    "METHANOL",   "COTTON"};
   // Sort by Name
@@ -242,7 +246,8 @@ int main(int argc, char *argv[]) {
     }
 
     // print prices table
-    print_table(commodities, names_in_order);
+    print_table(commodities,
+                std::set(names_in_order.begin(), names_in_order.end()));
 
     q->buffer_index_consume++;
     if (q->buffer_index_consume == q->N) {
