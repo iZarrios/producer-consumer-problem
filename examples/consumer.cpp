@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, signalHandler);
 
   if (argc != 2) {
-    printf("./consumer BUFFER_SIZE\n");
+    std::cout <<"./consumer <buffer_size>" << std::endl;  
     return -1;
   }
 

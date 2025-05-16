@@ -15,7 +15,8 @@ struct shared_memory *q;
 
 int main(int argc, char *argv[]) {
   if (argc != 6) {
-    cout << "Error wrong number of args\n";
+    cout << "consumer <commodity_name> <mean> <std_dev> <sleep_time_ms> "
+            "<buffer_size>\n";
     return 0;
   }
 
